@@ -16,7 +16,7 @@ int main(int argc, char **argv)
 
 	mpca_lang(MPCA_LANG_DEFAULT,
 		"\
-			prompt: /^/ <expr> <op> <expr> /$/ ;\
+			prompt: /^/ <op> <expr>+ /$/ ;\
 			expr: <num> | '(' <op> <expr>+ ')' ;\
 			op: '+' | '-' | '*' | '/' | '%' ;\
 			num: /-?[0-9]+(\\.[0-9]+)?/ ;\
