@@ -14,12 +14,13 @@ int main(int argc, char **argv)
 	mpc_parser_t *Opr = mpc_new("op");
 	mpc_parser_t *Num = mpc_new("num");
 
+	//num: /-?[0-9]+/ | /-?([0-9]{1})'.'[0-9]+/ ;
 	mpca_lang(MPCA_LANG_DEFAULT,
 		"\
 			prompt: /^/ <op> <expr>+ /$/ ;\
-			expr: <num> | /(/ <op> <expr>+ /)/ ;\
-			op: '+' | '-' | '*' | '/' ;\
-			num: /-?[0-0]+/ ;\
+			expr: <num> | '(' <op> <expr>+ ')' ;\
+			op: '+' | '-' | '*' | '/' | '%' ;\
+			num: /-?[0-9]+/ ;\
 		",
 		Prompt, Expr, Opr, Num);
 
@@ -32,7 +33,21 @@ int main(int argc, char **argv)
 		fgets(input, 2048, stdin);*/
 		char *input = readline("prompt> ");
 		add_history(input);
-		printf("Kevin, I don't care about %s\n", input);
+		//printf("Kevin, I don't care about %s\n", input);
+
+		mpc_result_t r;
+		if (mpc_parse("<stdin>", input, Prompt, &r))
+		{
+			//Abstract Syntax Tree
+			mpc_ast_print(r.output);
+			mpc_ast_delete(r.output);
+		}
+		else
+		{
+			mpc_err_print(r.error);
+			mpc_err_delete(r.error);
+		}
+
 		free(input);
 	}
 
