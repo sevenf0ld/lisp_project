@@ -14,13 +14,12 @@ int main(int argc, char **argv)
 	mpc_parser_t *Opr = mpc_new("op");
 	mpc_parser_t *Num = mpc_new("num");
 
-	//num: /-?[0-9]+/ | /-?([0-9]{1})'.'[0-9]+/ ;
 	mpca_lang(MPCA_LANG_DEFAULT,
 		"\
-			prompt: /^/ <op> <expr>+ /$/ ;\
+			prompt: /^/ <expr> <op> <expr> /$/ ;\
 			expr: <num> | '(' <op> <expr>+ ')' ;\
 			op: '+' | '-' | '*' | '/' | '%' ;\
-			num: /-?[0-9]+/ ;\
+			num: /-?[0-9]+(\\.[0-9]+)?/ ;\
 		",
 		Prompt, Expr, Opr, Num);
 
