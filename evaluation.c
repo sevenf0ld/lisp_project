@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include <editline/readline.h> 
 #include "mpc.h"
 
@@ -16,6 +17,8 @@ long eval_op(long x, char *op, long y)
 		return x / y;
 	if (strcmp(op, "%") == 0)
 		return x % y;
+	if (strcmp(op, "^") == 0)
+		return pow(x, y);
 }
 
 long eval(mpc_ast_t *t)
@@ -43,7 +46,7 @@ int main(int argc, char **argv)
 		"\
 			prompt: /^/ <op> <expr>+ /$/ ;\
 			expr: <num> | '(' <op> <expr>+ ')' ;\
-			op: '+' | '-' | '*' | '/' | '%' ;\
+			op: '+' | '-' | '*' | '/' | '%' | '^' ;\
 			num: /-?[0-9]+(\\.[0-9]+)?/ ;\
 		",
 		Prompt, Expr, Opr, Num);
