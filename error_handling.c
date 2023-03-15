@@ -114,7 +114,7 @@ int main(int argc, char **argv)
 		",
 		Prompt, Expr, Opr, Num);
 
-	puts("LISP Version 0.0.0.2");
+	puts("LISP Version 0.0.0.3");
 	puts("Ctrl+C to kill and Ctrl+Z to suspend\n");
 
 	while (1)
