@@ -8,33 +8,152 @@
 typedef struct {
 	long num;
 	int type;
-	int err;
+	char *err;
+	char *sym;
+	struct lval **cell;
+	int count;
 } lval;
 
 /*	an enumeration constant starts the progression from 0
 	enumerated values for the type field					*/
-enum {LVAL_NUM, LVAL_ERR};
-/*	enumeration for the error field	*/
-enum {LERR_ZERO_DIV, LERR_BAD_OPR, LERR_BAD_NUM};
+enum {LVAL_ERR, LVAL_NUM, LVAL_SYM, LVAL_SEXPR};
 
 /*	a struct for a valid number	*/
-lval lval_num(long x)
+lval *lval_num(long x)
 {
-	lval l;
-	l.type = LVAL_NUM; //type is 0
-	l.num = x;
-	return l;
-}
-/*	a struct for an erroneous value	*/
-lval lval_err(int i)
-{
-	lval l;
-	l.type = LVAL_ERR; //type is 1
-	l.err = i;
+	lval *l = malloc(sizeof(lval));
+	l->type = LVAL_NUM;
+	l->num = x;
 	return l;
 }
 
-void lval_print(lval l)
+/*	a struct for an erroneous value	*/
+lval *lval_err(char *s)
+{
+	lval *l = malloc(sizeof(lval));
+	l->type = LVAL_ERR;
+	l->err = malloc(strlen(s) + 1); //add null terminator
+	strcpy(l->err, s);
+	return l;
+}
+
+lval *lval_sym(char *s)
+{
+	lval *l = malloc(sizeof(lval));
+	l->type = LVAL_SYM;
+	l->sym = malloc(strlen(s) + 1);
+	strcpy(l->sym, s);
+	return l;
+}
+
+lval *lval_sexpr(void)
+{
+	lval *l = malloc(sizeof(lval));
+	l->type = LVAL_SEXPR;
+	l->cell = NULL;
+	l->count = 0;
+}
+
+void lval_del(lval *l)
+{
+	switch (l->type)
+	{
+	case LVAL_NUM:
+		break;
+	case LVAL_ERR:
+		free(l->err);
+		break;
+	case LVAL_SYM:
+		free(l->sym);
+		break;
+	case LVAL_SEXPR:
+		for (int i = 0; i < l->count; i++)
+			lval_del(l->cell[i]); //checks against the switch cases
+		free(l->cell);
+		break;
+	}
+
+	free(l);
+}
+
+lval *lval_read_num(mpc_ast_t *t)
+{
+	errno = 0;
+	long x = strtol(t->contents, NULL, 10);
+	return ((errno == ERANGE) ? lval_err("Invalid number") : lval_num(x));
+}
+
+lval *lval_read(mpc_ast_t *t)
+{
+	if (strstr(t->tag, "num"))
+		return lval_read_num(t);
+	if (strstr(t->tag, "sym"))
+		return lval_sym(t->contents);
+	
+	lval *l = NULL;
+	if (strcmp(t->tag, ">") == 0)
+		l = lval_sexpr();
+	if (strstr(t->tag, "sexpr"))
+		l = lval_sexpr();
+	
+	for (int i = 0; i < t->children_num; i++)
+	{
+		if (strcmp(t->children[i]->contents, "(") == 0)
+			continue;
+		if (strcmp(t->children[i]->contents, ")") == 0)
+			continue;
+		if (strcmp(t->children[i]->tag, "regex") == 0)
+			continue;
+		l = lval_add(l, lval_read(t->children[i]));
+	}
+
+	return l;
+}
+
+lval *lval_add(lval *l, lval *m)
+{
+	l->count++;
+	l->cell = realloc(l->cell, sizeof(lval *) * l->count);
+	l->cell[l->count - 1] = m
+	
+	return l;
+}
+
+void lval_print(lval *l);
+
+void lval_expr_print(lval *l, char open, char close)
+{
+	putchar(open);
+	for (int i = 0; i < v->count; i++)
+	{
+		lval_print(v->cell[i]);
+		if (i != (v->count - 1))
+			putchar(' ');
+	}
+	putchar(close);
+}
+
+void lval_print(lval *l)
+{
+	switch (l->type)
+	{
+	case LVAL_NUM:
+		printf("%li", l->num);
+		break;
+	case LVAL_ERR:
+		printf("Error: %s", l->err);
+		break;
+	case LVAL_SYM:
+		printf("%s", l->sym);
+		break;
+	case LVAL_SEXPR:
+		lval_expr_print(l, '(', ')');
+		break;
+	}
+	putchar('\n');
+}
+
+/*void lval_print(lval l)
 {
 	switch (l.type)
 	{
@@ -51,7 +170,7 @@ void lval_print(lval l)
 		break;
 	}
 	putchar('\n');
-}
+}*/
 
 lval eval_op(lval l, char *op, lval m)
 {
@@ -102,19 +221,22 @@ int main(int argc, char **argv)
 {
 	mpc_parser_t *Prompt = mpc_new("prompt");
 	mpc_parser_t *Expr = mpc_new("expr");
-	mpc_parser_t *Opr = mpc_new("op");
+	mpc_parser_t *Sexpr = mpc_new("sexpr");
+	mpc_parser_t *Sym = mpc_new("sym");
 	mpc_parser_t *Num = mpc_new("num");
 
+	/*	sexprs are expresssions in parantheses	*/
 	mpca_lang(MPCA_LANG_DEFAULT,
 		"\
-			prompt: /^/ <op> <expr>+ /$/ ;\
-			expr: <num> | '(' <op> <expr>+ ')' ;\
-			op: '+' | '-' | '*' | '/' | '%' | '^' ;\
+			prompt: /^/ <expr>* /$/ ;\
+			expr: <num> | <sym> | <sexpr> ;\
+			sym: '+' | '-' | '*' | '/' | '%' | '^' ;\
 			num: /-?[0-9]+(\\.[0-9]+)?/ ;\
+			sexpr: '(' <expr>* ')' ;\
 		",
-		Prompt, Expr, Opr, Num);
+		Prompt, Expr, Sym, Num, Sexpr);
 
-	puts("LISP Version 0.0.0.3");
+	puts("LISP Version 0.0.0.4");
 	puts("Ctrl+C to kill and Ctrl+Z to suspend\n");
 
 	while (1)
@@ -137,5 +259,5 @@ int main(int argc, char **argv)
 		free(input);
 	}
 
-	mpc_cleanup(4, Prompt, Expr, Opr, Num);
+	mpc_cleanup(5, Prompt, Expr, Sym, Num, Sexpr);
 }
